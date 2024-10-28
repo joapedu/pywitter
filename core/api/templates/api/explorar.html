@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="text-center">Explorar Posts</h2>
+<form action="/search/" method="get" class="form-inline my-2 my-lg-0">
+    <input class="form-control mr-sm-2" type="search" placeholder="Buscar por palavra-chave ou hashtag" style='width: 80%; margin-top: 5px; margin-bottom: 10px' name="q">
+    <button class="btn btn-outline-success my-2 my-sm-0" style="margin-top: 5px; margin-bottom: 10px;" type="submit">Pesquisar</button>
+</form>
+<div id="explorePosts"></div>
+<p id="emptyMessageExplore" style="display: none;" class="empty-message">Está meio vazio por aqui...</p>
+<button id="loadMoreExplore" class="load-more-btn" style="display: none;">Mostrar mais</button>
+
+<script>
+    let pageExplore = 1;
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = "/login/";
+    }
+
+    async function loadExplorePosts() {
+        const response = await fetch(`/api/explore/?page=${pageExplore}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+        const postsDiv = document.getElementById('explorePosts');
+
+        if (data.results.length === 0 && pageExplore === 1) {
+            document.getElementById('emptyMessageExplore').style.display = 'block';
+        }
+
+        data.results.forEach(post => {
+            const postElement = document.createElement('div');
+            postElement.classList.add('card');
+            postElement.innerHTML = `
+                <div class="card-body">
+                    <h5 class="card-title">${post.author}</h5>
+                    <p class="card-text">${post.content}</p>
+                    ${post.image ? `<img src="${post.image}" class="img-fluid" alt="Imagem do post" />` : ''}
+                    <small class="text-muted">Postado há ${post.time_ago}</small>
+                    <div class="mt-2">
+                        <button class="btn btn-primary" id="likeBtn_${post.id}" onclick="toggleLike(${post.id})">Curtir</button>
+                        <button class="btn btn-success" id="followBtn_${post.id}" onclick="toggleFollow(${post.id})">Seguir</button>
+                    </div>
+                </div>
+            `;
+            postsDiv.appendChild(postElement);
+
+            checkFollowing(post.author.id);
+            checkLiked(post.id);
+        });
+
+        if (data.next) {
+            document.getElementById('loadMoreExplore').style.display = 'block';
+        } else {
+            document.getElementById('loadMoreExplore').style.display = 'none';
+        }
+    }
+
+    async function checkLiked(postId) {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/posts/${postId}/likes/`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const likeBtn = document.getElementById(`likeBtn_${postId}`);
+            if (data.liked) {
+                likeBtn.textContent = 'Descurtir';
+            }
+        }
+    }
+
+    async function toggleLike(postId) {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/posts/${postId}/like/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            const likeBtn = document.getElementById(`likeBtn_${postId}`);
+            likeBtn.textContent = likeBtn.textContent === 'Curtir' ? 'Descurtir' : 'Curtir';
+        } else {
+            alert("Erro ao curtir/descurtir o post");
+        }
+    }
+
+    async function toggleFollow(userId) {
+        const token = localStorage.getItem('token');
+        const followBtn = document.getElementById(`followBtn_${userId}`);
+        const method = followBtn.textContent === 'Seguir' ? 'POST' : 'DELETE';
+        const endpoint = method === 'POST' ? `/api/users/${userId}/follow/` : `/api/users/${userId}/unfollow/`;
+
+        const response = await fetch(endpoint, {
+            method: method,
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            followBtn.textContent = followBtn.textContent === 'Seguir' ? 'Parar de Seguir' : 'Seguir';
+        } else {
+            alert("Erro ao seguir/desseguir o usuário");
+        }
+    }
+
+
+    async function checkLiked(postId) {
+        const response = await fetch(`/api/posts/${postId}/likes/`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const likeBtn = document.getElementById(`likeBtn_${postId}`);
+            if (data.liked) {
+                likeBtn.textContent = 'Descurtir';
+            }
+        }
+    }
+
+    async function checkFollowing(userId) {
+        const response = await fetch(`/api/following/`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const followBtn = document.getElementById(`followBtn_${userId}`);
+            const isFollowing = data.some(followingUser => followingUser.id === userId);
+            followBtn.textContent = isFollowing ? 'Parar de Seguir' : 'Seguir';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const posts = document.querySelectorAll('.post');
+
+        posts.forEach(post => {
+            const postId = post.getAttribute('data-id');
+            checkLiked(postId);
+        });
+    });
+
+    document.getElementById('loadMoreExplore').addEventListener('click', function () {
+        pageExplore += 1;
+        loadExplorePosts();
+    });
+
+    loadExplorePosts();
+</script>
+{% endblock %}

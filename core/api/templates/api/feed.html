@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="text-center">Feed</h2>
+<form action="/search/" method="get" class="form-inline my-2 my-lg-0">
+    <input class="form-control mr-sm-2" type="search" placeholder="Buscar por palavra-chave ou hashtag" style='width: 80%; margin-top: 5px; margin-bottom: 10px' name="q">
+    <button class="btn btn-outline-success my-2 my-sm-0" style="margin-top: 5px; margin-bottom: 10px;" type="submit">Pesquisar</button>
+</form>
+<div id="feedPosts"></div>
+<p id="emptyMessageFeed" style="display: none;" class="empty-message">Está meio vazio por aqui...</p>
+<button id="loadMoreFeed" class="load-more-btn" style="display: none;">Mostrar mais</button>
+
+<script>
+    let pageFeed = 1;
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = "/login/";
+    }
+
+    async function loadFeedPosts() {
+        const response = await fetch(`/api/feed/?page=${pageFeed}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+        const postsDiv = document.getElementById('feedPosts');
+
+        if (data.results.length === 0 && pageFeed === 1) {
+            document.getElementById('emptyMessageFeed').style.display = 'block';
+        }
+
+        data.results.forEach(post => {
+            const postElement = document.createElement('div');
+            postElement.classList.add('card');
+            postElement.innerHTML = `
+                <div class="card-body">
+                    <h5 class="card-title">${post.author}</h5>
+                    <p class="card-text">${post.content}</p>
+                    ${post.image ? `<img src="${post.image}" class="img-fluid" alt="Imagem do post" />` : ''}
+                    <small class="text-muted">Postado há ${post.time_ago}</small>
+                    <div class="mt-2">
+                        <button class="btn btn-success" onclick="likePost(${post.id})">Curtir</button>
+                    </div>
+                </div>
+            `;
+            postsDiv.appendChild(postElement);
+        });
+
+        if (data.next) {
+            document.getElementById('loadMoreFeed').style.display = 'block';
+        } else {
+            document.getElementById('loadMoreFeed').style.display = 'none';
+        }
+    }
+
+    document.getElementById('loadMoreFeed').addEventListener('click', function() {
+        pageFeed += 1;
+        loadFeedPosts();
+    });
+
+    loadFeedPosts();
+</script>
+{% endblock %}

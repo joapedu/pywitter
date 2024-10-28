@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="text-center">Informações do Usuário</h2>
+<div class="card mt-3">
+    <div class="card-body text-center">
+        <h5 class="card-title" id="username"></h5>
+        <p class="card-text">
+            <strong>Postagens:</strong> <span id="posts_count"></span><br>
+            <strong>Seguidores:</strong> <span id="followers_count"></span><br>
+            <strong>Seguindo:</strong> <span id="following_count"></span><br>
+            <strong>Total de Curtidas:</strong> <span id="total_likes"></span>
+        </p>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('token');
+    async function loadUserInfo() {
+        const response = await fetch('/api/user-info/', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+
+        document.getElementById('username').innerText = data.username;
+        document.getElementById('posts_count').innerText = data.posts_count;
+        document.getElementById('followers_count').innerText = data.followers_count;
+        document.getElementById('following_count').innerText = data.following_count;
+        document.getElementById('total_likes').innerText = data.total_likes;
+    }
+
+    loadUserInfo();
+</script>
+{% endblock %}
